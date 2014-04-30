@@ -55,6 +55,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <limits.h>
+#include <openssl/evp.h>
 #include <signal.h>
 #ifdef HAVE_SETXATTR
 #include <sys/xattr.h>
@@ -68,6 +69,8 @@
 #include "userinfo.h"
 #include "usermap.h"
 #include "misc.h"
+
+#define FH(x) ((FileHandle *)(x->fh))
 
 /* SETTINGS */
 static struct Settings {
@@ -135,6 +138,15 @@ static struct Settings {
     
 } settings;
 
+typedef struct FileHandle {
+    DIR *dir;
+    int fd;
+    int finished;
+    unsigned char outBuffer[EVP_MAX_BLOCK_LENGTH];
+    unsigned int outBufferSize;
+    EVP_CIPHER_CTX ectx;
+    EVP_CIPHER_CTX dctx;
+} FileHandle;
 
 
 /* PROTOTYPES */
@@ -161,7 +173,6 @@ static int bindfs_fgetattr(const char *path, struct stat *stbuf,
                            struct fuse_file_info *fi);
 static int bindfs_readlink(const char *path, char *buf, size_t size);
 static int bindfs_opendir(const char *path, struct fuse_file_info *fi);
-static inline DIR *get_dirp(struct fuse_file_info *fi);
 static int bindfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                           off_t offset, struct fuse_file_info *fi);
 static int bindfs_releasedir(const char *path, struct fuse_file_info *fi);
@@ -225,6 +236,16 @@ static int is_mirrored_user(uid_t uid)
     }
     return 0;
 }
+
+static FileHandle *create_file_handle() {
+    FileHandle *fh;
+    if(!(fh = malloc(sizeof(FileHandle))))
+        return NULL;
+    memset(fh, 0, sizeof(FileHandle));
+
+    return fh;
+}
+
 
 
 static const char *process_path(const char *path)
@@ -372,7 +393,7 @@ static int bindfs_fgetattr(const char *path, struct stat *stbuf,
 {
     path = process_path(path);
 
-    if (fstat(fi->fh, stbuf) == -1)
+    if (FH(fi) == NULL || fstat(FH(fi)->fd, stbuf) == -1)
         return -errno;
     return getattr_common(path, stbuf);
 }
@@ -398,6 +419,7 @@ static int bindfs_readlink(const char *path, char *buf, size_t size)
 static int bindfs_opendir(const char *path, struct fuse_file_info *fi)
 {
     DIR *dp;
+    FileHandle *fh;
 
     path = process_path(path);
 
@@ -405,19 +427,17 @@ static int bindfs_opendir(const char *path, struct fuse_file_info *fi)
     if (dp == NULL)
         return -errno;
 
-    fi->fh = (unsigned long) dp;
-    return 0;
-}
+    fh = create_file_handle();
+    fh->dir = dp;
+    fi->fh = (uint64_t)fh;
 
-static inline DIR *get_dirp(struct fuse_file_info *fi)
-{
-    return (DIR *) (uintptr_t) fi->fh;
+    return 0;
 }
 
 static int bindfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                           off_t offset, struct fuse_file_info *fi)
 {
-    DIR *dp = get_dirp(fi);
+    DIR *dp = FH(fi)->dir;
     struct dirent *de_buf;
     struct dirent *de;
     struct stat st;
@@ -457,7 +477,7 @@ static int bindfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int bindfs_releasedir(const char *path, struct fuse_file_info *fi)
 {
-    DIR *dp = get_dirp(fi);
+    DIR *dp = FH(fi)->dir;
     (void) path;
     closedir(dp);
     return 0;
@@ -726,6 +746,7 @@ static int bindfs_create(const char *path, mode_t mode, struct fuse_file_info *f
 
 static int bindfs_open(const char *path, struct fuse_file_info *fi)
 {
+    FileHandle *fh;
     int fd;
 
     path = process_path(path);
@@ -734,7 +755,10 @@ static int bindfs_open(const char *path, struct fuse_file_info *fi)
     if (fd == -1)
         return -errno;
 
-    fi->fh = fd;
+    fh = create_file_handle();
+    fh->fd = fd;
+    fi->fh = (uint64_t)fh;
+
     return 0;
 }
 
@@ -744,7 +768,7 @@ static int bindfs_read(const char *path, char *buf, size_t size, off_t offset,
     int res;
     (void) path;
     
-    res = pread(fi->fh, buf, size, offset);
+    res = pread(FH(fi)->fd, buf, size, offset);
     if (res == -1)
         res = -errno;
 
@@ -781,7 +805,10 @@ static int bindfs_release(const char *path, struct fuse_file_info *fi)
 {
     (void) path;
     
-    close(fi->fh);
+    FileHandle *fh = FH(fi);
+
+    close(fh->fd);
+    free(fh);
 
     return 0;
 }

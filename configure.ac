@@ -44,6 +44,7 @@ AC_CHECK_FUNCS([lsetxattr lgetxattr llistxattr lremovexattr])
 
 # Check for fuse
 PKG_CHECK_MODULES([fuse], [fuse >= 2.6.0])
+PKG_CHECK_MODULES([openssl], [openssl])
 
 AC_CONFIG_FILES([Makefile \
 	src/Makefile \
