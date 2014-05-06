@@ -148,6 +148,8 @@ typedef struct FileHandle {
     int finished;
     unsigned char buffer[EVP_MAX_BLOCK_LENGTH];
     int buffer_length;
+
+    int file_offset;
     EVP_CIPHER_CTX ctx;
 } FileHandle;
 
@@ -221,13 +223,11 @@ static void atexit_func();
 
 static int is_mirroring_enabled()
 {
-    puts(__FUNCTION__);fflush(stdout);
     return settings.num_mirrored_users + settings.num_mirrored_members > 0;
 }
 
 static int is_mirrored_user(uid_t uid)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int i;
     for (i = 0; i < settings.num_mirrored_users; ++i) {
         if (settings.mirrored_users[i] == uid) {
@@ -248,10 +248,6 @@ static FileHandle *create_file_handle() {
         return NULL;
     memset(fh, 0, sizeof(FileHandle));
 
-    EVP_CIPHER_CTX_init(&fh->ctx);
-    EVP_EncryptInit_ex(&fh->ctx, EVP_aes_256_cbc(), NULL,
-            (unsigned char *)"00000000000000000000000000000000", // key
-            (unsigned char *)"0000000000000000"); // iv
 
     return fh;
 }
@@ -260,7 +256,6 @@ static FileHandle *create_file_handle() {
 
 static const char *process_path(const char *path)
 {
-    puts(__FUNCTION__);fflush(stdout);
     if (path == NULL) /* possible? */
         return NULL;
 
@@ -275,7 +270,6 @@ static const char *process_path(const char *path)
 
 static int getattr_common(const char *procpath, struct stat *stbuf)
 {
-    puts(__FUNCTION__);fflush(stdout);
     struct fuse_context *fc = fuse_get_context();
 
     /* Copy mtime (file content modification time)
@@ -334,7 +328,6 @@ static int getattr_common(const char *procpath, struct stat *stbuf)
           Is there a scenario where this compromises security? Or application correctness? */
 static void chown_new_file(const char *path, struct fuse_context *fc, int (*chown_func)(const char*, uid_t, gid_t))
 {
-    puts(__FUNCTION__);fflush(stdout);
     uid_t file_owner;
     gid_t file_group;
 
@@ -375,7 +368,6 @@ static void chown_new_file(const char *path, struct fuse_context *fc, int (*chow
 
 static void *bindfs_init()
 {
-    puts(__FUNCTION__);fflush(stdout);
     assert(settings.permchain != NULL);
     assert(settings.mntsrc_fd > 0);
     
@@ -396,12 +388,10 @@ static void *bindfs_init()
 
 static void bindfs_destroy(void *private_data)
 {
-    puts(__FUNCTION__);fflush(stdout);
 }
 
 static int bindfs_getattr(const char *path, struct stat *stbuf)
 {
-    puts(__FUNCTION__);fflush(stdout);
     path = process_path(path);
 
     if (lstat(path, stbuf) == -1)
@@ -412,7 +402,6 @@ static int bindfs_getattr(const char *path, struct stat *stbuf)
 static int bindfs_fgetattr(const char *path, struct stat *stbuf,
                            struct fuse_file_info *fi)
 {
-    puts(__FUNCTION__);fflush(stdout);
     path = process_path(path);
 
     if (FH(fi) == NULL || fstat(FH(fi)->fd, stbuf) == -1)
@@ -422,7 +411,6 @@ static int bindfs_fgetattr(const char *path, struct stat *stbuf,
 
 static int bindfs_readlink(const char *path, char *buf, size_t size)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
 
     path = process_path(path);
@@ -441,7 +429,6 @@ static int bindfs_readlink(const char *path, char *buf, size_t size)
 
 static int bindfs_opendir(const char *path, struct fuse_file_info *fi)
 {
-    puts(__FUNCTION__);fflush(stdout);
     DIR *dp;
     FileHandle *fh;
 
@@ -461,7 +448,6 @@ static int bindfs_opendir(const char *path, struct fuse_file_info *fi)
 static int bindfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                           off_t offset, struct fuse_file_info *fi)
 {
-    puts(__FUNCTION__);fflush(stdout);
     DIR *dp = FH(fi)->dir;
     struct dirent *de_buf;
     struct dirent *de;
@@ -502,7 +488,6 @@ static int bindfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int bindfs_releasedir(const char *path, struct fuse_file_info *fi)
 {
-    puts(__FUNCTION__);fflush(stdout);
     DIR *dp = FH(fi)->dir;
     (void) path;
     closedir(dp);
@@ -511,7 +496,6 @@ static int bindfs_releasedir(const char *path, struct fuse_file_info *fi)
 
 static int bindfs_mknod(const char *path, mode_t mode, dev_t rdev)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
     struct fuse_context *fc;
 
@@ -534,7 +518,6 @@ static int bindfs_mknod(const char *path, mode_t mode, dev_t rdev)
 
 static int bindfs_mkdir(const char *path, mode_t mode)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
     struct fuse_context *fc;
 
@@ -555,7 +538,6 @@ static int bindfs_mkdir(const char *path, mode_t mode)
 
 static int bindfs_unlink(const char *path)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
 
     path = process_path(path);
@@ -569,7 +551,6 @@ static int bindfs_unlink(const char *path)
 
 static int bindfs_rmdir(const char *path)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
 
     path = process_path(path);
@@ -583,7 +564,6 @@ static int bindfs_rmdir(const char *path)
 
 static int bindfs_symlink(const char *from, const char *to)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
     struct fuse_context *fc;
 
@@ -601,7 +581,6 @@ static int bindfs_symlink(const char *from, const char *to)
 
 static int bindfs_rename(const char *from, const char *to)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
 
     from = process_path(from);
@@ -616,7 +595,6 @@ static int bindfs_rename(const char *from, const char *to)
 
 static int bindfs_link(const char *from, const char *to)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
 
     from = process_path(from);
@@ -631,7 +609,6 @@ static int bindfs_link(const char *from, const char *to)
 
 static int bindfs_chmod(const char *path, mode_t mode)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int file_execute_only = 0;
     struct stat st;
     mode_t diff = 0;
@@ -680,7 +657,6 @@ static int bindfs_chmod(const char *path, mode_t mode)
 
 static int bindfs_chown(const char *path, uid_t uid, gid_t gid)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
 
     if (uid != -1) {
@@ -721,7 +697,6 @@ static int bindfs_chown(const char *path, uid_t uid, gid_t gid)
 
 static int bindfs_truncate(const char *path, off_t size)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
 
     path = process_path(path);
@@ -736,7 +711,6 @@ static int bindfs_truncate(const char *path, off_t size)
 static int bindfs_ftruncate(const char *path, off_t size,
                             struct fuse_file_info *fi)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
     (void) path;
 
@@ -749,7 +723,6 @@ static int bindfs_ftruncate(const char *path, off_t size,
 
 static int bindfs_utimens(const char *path, const struct timespec tv[2])
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
 
     path = process_path(path);
@@ -763,7 +736,6 @@ static int bindfs_utimens(const char *path, const struct timespec tv[2])
 
 static int bindfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
-    puts(__FUNCTION__);fflush(stdout);
     FileHandle *fh;
     int fd;
     struct fuse_context *fc;
@@ -788,7 +760,6 @@ static int bindfs_create(const char *path, mode_t mode, struct fuse_file_info *f
 
 static int bindfs_open(const char *path, struct fuse_file_info *fi)
 {
-    puts(__FUNCTION__);fflush(stdout);
     FileHandle *fh;
     int fd;
 
@@ -808,58 +779,103 @@ static int bindfs_open(const char *path, struct fuse_file_info *fi)
 static int bindfs_read(const char *path, char *buf, size_t size, off_t offset,
                        struct fuse_file_info *fi)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int read_length;
     int out_len = 0;
     (void) path;
     FileHandle *fh = FH(fi);
-    unsigned int block_size = EVP_CIPHER_CTX_block_size(&fh->ctx);
-    unsigned int plain_length = size - (size % block_size);
-    unsigned char *plain = alloca(plain_length);
+    unsigned int block_size;
+    unsigned int plain_length;
+    int encrypt_length;
+    unsigned char *plain;
+    unsigned char *encrypt;
 
-    if(fh->finished == 1)
-        return 0;
-    if(fh->buffer_length != 0){
-        out_len = MIN(fh->buffer_length, size);
-        memcpy(buf, fh->buffer, out_len);
-        memmove(fh->buffer, fh->buffer + out_len,
-                fh->buffer_length - out_len);
-        fh->buffer_length -= out_len;
-        return out_len;
+    if(offset == 0 || offset < fh->file_offset) {
+        fh->finished = fh->file_offset = 0;
+        EVP_CIPHER_CTX_init(&fh->ctx);
+        EVP_EncryptInit_ex(&fh->ctx, EVP_aes_256_cbc(), NULL,
+                (unsigned char *)"00000000000000000000000000000000", // key
+                (unsigned char *)"0000000000000000"); // iv 
     }
 
-    read_length = pread(fh->fd, plain, plain_length, offset);
-    if (read_length == -1)
-        return -errno;
+    block_size = EVP_CIPHER_CTX_block_size(&fh->ctx);
 
-    EVP_EncryptUpdate(&fh->ctx, (unsigned char *)buf, &out_len, plain, read_length);
-    if(out_len == 0) {
-        if(read_length != 0) {
-            plain = alloca(block_size);
-            read_length = pread(fh->fd, plain, block_size, offset + read_length);
+    // drop bytes to buffer position;
+    if(offset > fh->file_offset) {
+        plain_length = BUFSIZ;
+        plain = alloca(plain_length);
+        encrypt = alloca(plain_length);
+
+        while(offset > fh->file_offset) {
+            read_length = read(fh->fd, plain, plain_length);
+            EVP_EncryptUpdate(&fh->ctx, (unsigned char *)encrypt, &encrypt_length,
+                    plain, MIN(read_length, offset - fh->file_offset));
+            fh->file_offset += encrypt_length;
         }
+        
+        fh->buffer_length = MIN(fh->file_offset - offset, block_size);
+        memcpy(fh->buffer, encrypt + fh->file_offset - offset, fh->buffer_length);
+        fh->file_offset = offset;
+    }
 
+    // Flush Buffer if possible
+    if(fh->buffer_length != 0) {
+        out_len = MIN(size, fh->buffer_length);
+        fh->buffer_length -= out_len;
+        memcpy(buf, fh->buffer, out_len);
+        memmove(fh->buffer, fh->buffer+out_len, fh->buffer_length);
+        buf += out_len;
+        size -= out_len;
+        offset += out_len;
+        if(size == 0) {
+            return out_len;
+        }
+    }
+
+    if(fh->finished)
+        return out_len;
+
+    // Init all Buffers
+    plain_length = size + block_size - 1;
+    encrypt_length = 0;
+    plain = alloca(plain_length);
+    encrypt = alloca(plain_length);
+
+    // Read from fd and encrypt it.
+    int buf_offset = 0;
+    while(!fh->finished &&
+            (read_length = read(fh->fd, plain, plain_length)) >= 0) {
         if(read_length == 0) {
-            EVP_EncryptFinal_ex(&fh->ctx, fh->buffer, &fh->buffer_length);
+            EVP_EncryptFinal(&fh->ctx, (unsigned char *)encrypt, &encrypt_length);
             fh->finished = 1;
         }
         else {
-            EVP_EncryptUpdate(&fh->ctx, fh->buffer, &fh->buffer_length, plain, read_length);
+            EVP_EncryptUpdate(&fh->ctx, (unsigned char *)encrypt, &encrypt_length,
+                    plain, read_length);
         }
-        out_len = MIN(fh->buffer_length, size);
-        memcpy(buf, fh->buffer, out_len);
-        memmove(fh->buffer, fh->buffer + out_len,
-                fh->buffer_length - out_len);
-        fh->buffer_length -= out_len;
+        buf_offset = MIN(encrypt_length, size);
+        out_len += buf_offset;
+        memcpy(buf, encrypt, MIN(encrypt_length, size));
+
+        // If we got more data in the buffer as we can print, we save them
+        // overflowing bytes to the fd
+        if(encrypt_length >= size) {
+            fh->buffer_length = encrypt_length - size;
+            memcpy(fh->buffer, encrypt+size, fh->buffer_length);
+            break;
+        }
+
+        size -= buf_offset;
+        buf += buf_offset;
+        offset += read_length;
     }
 
+    fh->file_offset += out_len;
     return out_len;
 }
 
 static int bindfs_write(const char *path, const char *buf, size_t size,
                         off_t offset, struct fuse_file_info *fi)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
     (void) path;
 
@@ -872,7 +888,6 @@ static int bindfs_write(const char *path, const char *buf, size_t size,
 
 static int bindfs_statfs(const char *path, struct statvfs *stbuf)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
 
     path = process_path(path);
@@ -886,7 +901,6 @@ static int bindfs_statfs(const char *path, struct statvfs *stbuf)
 
 static int bindfs_release(const char *path, struct fuse_file_info *fi)
 {
-    puts(__FUNCTION__);fflush(stdout);
     (void) path;
     
     FileHandle *fh = FH(fi);
@@ -900,7 +914,6 @@ static int bindfs_release(const char *path, struct fuse_file_info *fi)
 static int bindfs_fsync(const char *path, int isdatasync,
                         struct fuse_file_info *fi)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
     (void) path;
 
@@ -924,7 +937,6 @@ static int bindfs_fsync(const char *path, int isdatasync,
 static int bindfs_setxattr(const char *path, const char *name, const char *value,
                            size_t size, int flags)
 {
-    puts(__FUNCTION__);fflush(stdout);
     DPRINTF("setxattr %s %s=%s", path, name, value);
     
     if (settings.xattr_policy == XATTR_READ_ONLY)
@@ -944,7 +956,6 @@ static int bindfs_setxattr(const char *path, const char *name, const char *value
 static int bindfs_getxattr(const char *path, const char *name, char *value,
                            size_t size)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
 
     DPRINTF("getxattr %s %s", path, name);
@@ -963,7 +974,6 @@ static int bindfs_getxattr(const char *path, const char *name, char *value,
 
 static int bindfs_listxattr(const char *path, char *list, size_t size)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int res;
 
     DPRINTF("listxattr %s", path);
@@ -982,7 +992,6 @@ static int bindfs_listxattr(const char *path, char *list, size_t size)
 
 static int bindfs_removexattr(const char *path, const char *name)
 {
-    puts(__FUNCTION__);fflush(stdout);
     DPRINTF("removexattr %s %s", path, name);
 
     if (settings.xattr_policy == XATTR_READ_ONLY)
@@ -1040,7 +1049,6 @@ static struct fuse_operations bindfs_oper = {
 
 static void print_usage(const char *progname)
 {
-    puts(__FUNCTION__);fflush(stdout);
     if (progname == NULL)
         progname = "bindfs";
 
@@ -1142,7 +1150,6 @@ enum OptionKey {
 static int process_option(void *data, const char *arg, int key,
                           struct fuse_args *outargs)
 {
-    puts(__FUNCTION__);fflush(stdout);
     switch ((enum OptionKey)key)
     {
     case OPTKEY_HELP:
@@ -1238,7 +1245,6 @@ static int process_option(void *data, const char *arg, int key,
 
 static int parse_mirrored_users(char* mirror)
 {
-    puts(__FUNCTION__);fflush(stdout);
     int i;
     int j;
     char *p, *tmpstr;
@@ -1290,7 +1296,6 @@ static int parse_mirrored_users(char* mirror)
 
 static int parse_user_map(UserMap *map, UserMap *reverse_map, char *spec)
 {
-    puts(__FUNCTION__);fflush(stdout);
     char *p = spec;
     char *tmpstr = NULL;
     char *q;
@@ -1378,7 +1383,6 @@ fail:
 
 static void maybe_stdout_stderr_to_file()
 {
-    puts(__FUNCTION__);fflush(stdout);
     /* TODO: make this a command line option. */
 #if 0
     int fd;
@@ -1402,7 +1406,6 @@ static void maybe_stdout_stderr_to_file()
 
 static char *get_working_dir()
 {
-    puts(__FUNCTION__);fflush(stdout);
     size_t buf_size = 4096;
     char* buf = malloc(buf_size);
     while (!getcwd(buf, buf_size)) {
@@ -1414,7 +1417,6 @@ static char *get_working_dir()
 
 static void setup_signal_handling()
 {
-    puts(__FUNCTION__);fflush(stdout);
     struct sigaction sa;
     sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
@@ -1425,13 +1427,11 @@ static void setup_signal_handling()
 
 static void signal_handler(int sig)
 {
-    puts(__FUNCTION__);fflush(stdout);
     invalidate_user_cache();
 }
 
 static void atexit_func()
 {
-    puts(__FUNCTION__);fflush(stdout);
     free(settings.original_working_dir);
     settings.original_working_dir = NULL;
     usermap_destroy(settings.usermap);
@@ -1452,7 +1452,6 @@ static void atexit_func()
 
 int main(int argc, char *argv[])
 {
-    puts(__FUNCTION__);fflush(stdout);
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 
     /* Fuse's option parser will store things here. */
