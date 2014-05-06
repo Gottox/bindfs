@@ -1,4 +1,4 @@
-AC_INIT([bindfs],[1.12.3],[martin.partel@gmail.com])
+AC_INIT([crypticfs],[1.12.3],[martin.partel@gmail.com])
 
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_HEADERS([config.h])
@@ -23,7 +23,7 @@ else
 fi
 
 if test x"$enable_debug_output" == "xyes" ; then
-	AC_DEFINE([BINDFS_DEBUG], [1], [Define to 1 to enable debugging messages])
+	AC_DEFINE([CRPTC_DEBUG], [1], [Define to 1 to enable debugging messages])
 fi
 
 if test x"$with_core_foundation" == "xyes" ; then

@@ -171,38 +171,38 @@ static int getattr_common(const char *path, struct stat *stbuf);
 static void chown_new_file(const char *path, struct fuse_context *fc, int (*chown_func)(const char*, uid_t, gid_t));
 
 /* FUSE callbacks */
-static void *bindfs_init();
-static void bindfs_destroy(void *private_data);
-static int bindfs_getattr(const char *path, struct stat *stbuf);
-static int bindfs_fgetattr(const char *path, struct stat *stbuf,
+static void *crptc_init();
+static void crptc_destroy(void *private_data);
+static int crptc_getattr(const char *path, struct stat *stbuf);
+static int crptc_fgetattr(const char *path, struct stat *stbuf,
                            struct fuse_file_info *fi);
-static int bindfs_readlink(const char *path, char *buf, size_t size);
-static int bindfs_opendir(const char *path, struct fuse_file_info *fi);
-static int bindfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+static int crptc_readlink(const char *path, char *buf, size_t size);
+static int crptc_opendir(const char *path, struct fuse_file_info *fi);
+static int crptc_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                           off_t offset, struct fuse_file_info *fi);
-static int bindfs_releasedir(const char *path, struct fuse_file_info *fi);
-static int bindfs_mknod(const char *path, mode_t mode, dev_t rdev);
-static int bindfs_mkdir(const char *path, mode_t mode);
-static int bindfs_unlink(const char *path);
-static int bindfs_rmdir(const char *path);
-static int bindfs_symlink(const char *from, const char *to);
-static int bindfs_rename(const char *from, const char *to);
-static int bindfs_link(const char *from, const char *to);
-static int bindfs_chmod(const char *path, mode_t mode);
-static int bindfs_chown(const char *path, uid_t uid, gid_t gid);
-static int bindfs_truncate(const char *path, off_t size);
-static int bindfs_ftruncate(const char *path, off_t size,
+static int crptc_releasedir(const char *path, struct fuse_file_info *fi);
+static int crptc_mknod(const char *path, mode_t mode, dev_t rdev);
+static int crptc_mkdir(const char *path, mode_t mode);
+static int crptc_unlink(const char *path);
+static int crptc_rmdir(const char *path);
+static int crptc_symlink(const char *from, const char *to);
+static int crptc_rename(const char *from, const char *to);
+static int crptc_link(const char *from, const char *to);
+static int crptc_chmod(const char *path, mode_t mode);
+static int crptc_chown(const char *path, uid_t uid, gid_t gid);
+static int crptc_truncate(const char *path, off_t size);
+static int crptc_ftruncate(const char *path, off_t size,
                             struct fuse_file_info *fi);
-static int bindfs_utimens(const char *path, const struct timespec tv[2]);
-static int bindfs_create(const char *path, mode_t mode, struct fuse_file_info *fi);
-static int bindfs_open(const char *path, struct fuse_file_info *fi);
-static int bindfs_read(const char *path, char *buf, size_t size, off_t offset,
+static int crptc_utimens(const char *path, const struct timespec tv[2]);
+static int crptc_create(const char *path, mode_t mode, struct fuse_file_info *fi);
+static int crptc_open(const char *path, struct fuse_file_info *fi);
+static int crptc_read(const char *path, char *buf, size_t size, off_t offset,
                        struct fuse_file_info *fi);
-static int bindfs_write(const char *path, const char *buf, size_t size,
+static int crptc_write(const char *path, const char *buf, size_t size,
                         off_t offset, struct fuse_file_info *fi);
-static int bindfs_statfs(const char *path, struct statvfs *stbuf);
-static int bindfs_release(const char *path, struct fuse_file_info *fi);
-static int bindfs_fsync(const char *path, int isdatasync,
+static int crptc_statfs(const char *path, struct statvfs *stbuf);
+static int crptc_release(const char *path, struct fuse_file_info *fi);
+static int crptc_fsync(const char *path, int isdatasync,
                         struct fuse_file_info *fi);
 
 
@@ -366,7 +366,7 @@ static void chown_new_file(const char *path, struct fuse_context *fc, int (*chow
 
 
 
-static void *bindfs_init()
+static void *crptc_init()
 {
     assert(settings.permchain != NULL);
     assert(settings.mntsrc_fd > 0);
@@ -386,11 +386,11 @@ static void *bindfs_init()
     return NULL;
 }
 
-static void bindfs_destroy(void *private_data)
+static void crptc_destroy(void *private_data)
 {
 }
 
-static int bindfs_getattr(const char *path, struct stat *stbuf)
+static int crptc_getattr(const char *path, struct stat *stbuf)
 {
     path = process_path(path);
 
@@ -399,7 +399,7 @@ static int bindfs_getattr(const char *path, struct stat *stbuf)
     return getattr_common(path, stbuf);
 }
 
-static int bindfs_fgetattr(const char *path, struct stat *stbuf,
+static int crptc_fgetattr(const char *path, struct stat *stbuf,
                            struct fuse_file_info *fi)
 {
     path = process_path(path);
@@ -409,7 +409,7 @@ static int bindfs_fgetattr(const char *path, struct stat *stbuf,
     return getattr_common(path, stbuf);
 }
 
-static int bindfs_readlink(const char *path, char *buf, size_t size)
+static int crptc_readlink(const char *path, char *buf, size_t size)
 {
     int res;
 
@@ -427,7 +427,7 @@ static int bindfs_readlink(const char *path, char *buf, size_t size)
     return 0;
 }
 
-static int bindfs_opendir(const char *path, struct fuse_file_info *fi)
+static int crptc_opendir(const char *path, struct fuse_file_info *fi)
 {
     DIR *dp;
     FileHandle *fh;
@@ -445,7 +445,7 @@ static int bindfs_opendir(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
-static int bindfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+static int crptc_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                           off_t offset, struct fuse_file_info *fi)
 {
     DIR *dp = FH(fi)->dir;
@@ -486,7 +486,7 @@ static int bindfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     return result;
 }
 
-static int bindfs_releasedir(const char *path, struct fuse_file_info *fi)
+static int crptc_releasedir(const char *path, struct fuse_file_info *fi)
 {
     DIR *dp = FH(fi)->dir;
     (void) path;
@@ -494,7 +494,7 @@ static int bindfs_releasedir(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
-static int bindfs_mknod(const char *path, mode_t mode, dev_t rdev)
+static int crptc_mknod(const char *path, mode_t mode, dev_t rdev)
 {
     int res;
     struct fuse_context *fc;
@@ -516,7 +516,7 @@ static int bindfs_mknod(const char *path, mode_t mode, dev_t rdev)
     return 0;
 }
 
-static int bindfs_mkdir(const char *path, mode_t mode)
+static int crptc_mkdir(const char *path, mode_t mode)
 {
     int res;
     struct fuse_context *fc;
@@ -536,7 +536,7 @@ static int bindfs_mkdir(const char *path, mode_t mode)
     return 0;
 }
 
-static int bindfs_unlink(const char *path)
+static int crptc_unlink(const char *path)
 {
     int res;
 
@@ -549,7 +549,7 @@ static int bindfs_unlink(const char *path)
     return 0;
 }
 
-static int bindfs_rmdir(const char *path)
+static int crptc_rmdir(const char *path)
 {
     int res;
 
@@ -562,7 +562,7 @@ static int bindfs_rmdir(const char *path)
     return 0;
 }
 
-static int bindfs_symlink(const char *from, const char *to)
+static int crptc_symlink(const char *from, const char *to)
 {
     int res;
     struct fuse_context *fc;
@@ -579,7 +579,7 @@ static int bindfs_symlink(const char *from, const char *to)
     return 0;
 }
 
-static int bindfs_rename(const char *from, const char *to)
+static int crptc_rename(const char *from, const char *to)
 {
     int res;
 
@@ -593,7 +593,7 @@ static int bindfs_rename(const char *from, const char *to)
     return 0;
 }
 
-static int bindfs_link(const char *from, const char *to)
+static int crptc_link(const char *from, const char *to)
 {
     int res;
 
@@ -607,7 +607,7 @@ static int bindfs_link(const char *from, const char *to)
     return 0;
 }
 
-static int bindfs_chmod(const char *path, mode_t mode)
+static int crptc_chmod(const char *path, mode_t mode)
 {
     int file_execute_only = 0;
     struct stat st;
@@ -655,7 +655,7 @@ static int bindfs_chmod(const char *path, mode_t mode)
     }
 }
 
-static int bindfs_chown(const char *path, uid_t uid, gid_t gid)
+static int crptc_chown(const char *path, uid_t uid, gid_t gid)
 {
     int res;
 
@@ -695,7 +695,7 @@ static int bindfs_chown(const char *path, uid_t uid, gid_t gid)
     return 0;
 }
 
-static int bindfs_truncate(const char *path, off_t size)
+static int crptc_truncate(const char *path, off_t size)
 {
     int res;
 
@@ -708,7 +708,7 @@ static int bindfs_truncate(const char *path, off_t size)
     return 0;
 }
 
-static int bindfs_ftruncate(const char *path, off_t size,
+static int crptc_ftruncate(const char *path, off_t size,
                             struct fuse_file_info *fi)
 {
     int res;
@@ -721,7 +721,7 @@ static int bindfs_ftruncate(const char *path, off_t size,
     return 0;
 }
 
-static int bindfs_utimens(const char *path, const struct timespec tv[2])
+static int crptc_utimens(const char *path, const struct timespec tv[2])
 {
     int res;
 
@@ -734,7 +734,7 @@ static int bindfs_utimens(const char *path, const struct timespec tv[2])
     return 0;
 }
 
-static int bindfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
+static int crptc_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     FileHandle *fh;
     int fd;
@@ -758,7 +758,7 @@ static int bindfs_create(const char *path, mode_t mode, struct fuse_file_info *f
     return 0;
 }
 
-static int bindfs_open(const char *path, struct fuse_file_info *fi)
+static int crptc_open(const char *path, struct fuse_file_info *fi)
 {
     FileHandle *fh;
     int fd;
@@ -776,7 +776,7 @@ static int bindfs_open(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
-static int bindfs_read(const char *path, char *buf, size_t size, off_t offset,
+static int crptc_read(const char *path, char *buf, size_t size, off_t offset,
                        struct fuse_file_info *fi)
 {
     int read_length;
@@ -873,7 +873,7 @@ static int bindfs_read(const char *path, char *buf, size_t size, off_t offset,
     return out_len;
 }
 
-static int bindfs_write(const char *path, const char *buf, size_t size,
+static int crptc_write(const char *path, const char *buf, size_t size,
                         off_t offset, struct fuse_file_info *fi)
 {
     int res;
@@ -886,7 +886,7 @@ static int bindfs_write(const char *path, const char *buf, size_t size,
     return res;
 }
 
-static int bindfs_statfs(const char *path, struct statvfs *stbuf)
+static int crptc_statfs(const char *path, struct statvfs *stbuf)
 {
     int res;
 
@@ -899,7 +899,7 @@ static int bindfs_statfs(const char *path, struct statvfs *stbuf)
     return 0;
 }
 
-static int bindfs_release(const char *path, struct fuse_file_info *fi)
+static int crptc_release(const char *path, struct fuse_file_info *fi)
 {
     (void) path;
     
@@ -911,7 +911,7 @@ static int bindfs_release(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
-static int bindfs_fsync(const char *path, int isdatasync,
+static int crptc_fsync(const char *path, int isdatasync,
                         struct fuse_file_info *fi)
 {
     int res;
@@ -934,7 +934,7 @@ static int bindfs_fsync(const char *path, int isdatasync,
 #ifdef HAVE_SETXATTR
 /* If HAVE_L*XATTR is not defined, we assume Mac/BSD -style *xattr() */
 
-static int bindfs_setxattr(const char *path, const char *name, const char *value,
+static int crptc_setxattr(const char *path, const char *name, const char *value,
                            size_t size, int flags)
 {
     DPRINTF("setxattr %s %s=%s", path, name, value);
@@ -953,7 +953,7 @@ static int bindfs_setxattr(const char *path, const char *name, const char *value
     return 0;
 }
 
-static int bindfs_getxattr(const char *path, const char *name, char *value,
+static int crptc_getxattr(const char *path, const char *name, char *value,
                            size_t size)
 {
     int res;
@@ -972,7 +972,7 @@ static int bindfs_getxattr(const char *path, const char *name, char *value,
     return res;
 }
 
-static int bindfs_listxattr(const char *path, char *list, size_t size)
+static int crptc_listxattr(const char *path, char *list, size_t size)
 {
     int res;
 
@@ -990,7 +990,7 @@ static int bindfs_listxattr(const char *path, char *list, size_t size)
     return res;
 }
 
-static int bindfs_removexattr(const char *path, const char *name)
+static int crptc_removexattr(const char *path, const char *name)
 {
     DPRINTF("removexattr %s %s", path, name);
 
@@ -1010,40 +1010,40 @@ static int bindfs_removexattr(const char *path, const char *name)
 #endif /* HAVE_SETXATTR */
 
 
-static struct fuse_operations bindfs_oper = {
-    .init       = bindfs_init,
-    .destroy    = bindfs_destroy,
-    .getattr    = bindfs_getattr,
-    .fgetattr   = bindfs_fgetattr,
+static struct fuse_operations crptc_oper = {
+    .init       = crptc_init,
+    .destroy    = crptc_destroy,
+    .getattr    = crptc_getattr,
+    .fgetattr   = crptc_fgetattr,
     /* no access() since we always use -o default_permissions */
-    .readlink   = bindfs_readlink,
-    .opendir    = bindfs_opendir,
-    .readdir    = bindfs_readdir,
-    .releasedir = bindfs_releasedir,
-    .mknod      = bindfs_mknod,
-    .mkdir      = bindfs_mkdir,
-    .symlink    = bindfs_symlink,
-    .unlink     = bindfs_unlink,
-    .rmdir      = bindfs_rmdir,
-    .rename     = bindfs_rename,
-    .link       = bindfs_link,
-    .chmod      = bindfs_chmod,
-    .chown      = bindfs_chown,
-    .truncate   = bindfs_truncate,
-    .ftruncate  = bindfs_ftruncate,
-    .utimens    = bindfs_utimens,
-    .create     = bindfs_create,
-    .open       = bindfs_open,
-    .read       = bindfs_read,
-    .write      = bindfs_write,
-    .statfs     = bindfs_statfs,
-    .release    = bindfs_release,
-    .fsync      = bindfs_fsync,
+    .readlink   = crptc_readlink,
+    .opendir    = crptc_opendir,
+    .readdir    = crptc_readdir,
+    .releasedir = crptc_releasedir,
+    .mknod      = crptc_mknod,
+    .mkdir      = crptc_mkdir,
+    .symlink    = crptc_symlink,
+    .unlink     = crptc_unlink,
+    .rmdir      = crptc_rmdir,
+    .rename     = crptc_rename,
+    .link       = crptc_link,
+    .chmod      = crptc_chmod,
+    .chown      = crptc_chown,
+    .truncate   = crptc_truncate,
+    .ftruncate  = crptc_ftruncate,
+    .utimens    = crptc_utimens,
+    .create     = crptc_create,
+    .open       = crptc_open,
+    .read       = crptc_read,
+    .write      = crptc_write,
+    .statfs     = crptc_statfs,
+    .release    = crptc_release,
+    .fsync      = crptc_fsync,
 #ifdef HAVE_SETXATTR
-    .setxattr   = bindfs_setxattr,
-    .getxattr   = bindfs_getxattr,
-    .listxattr  = bindfs_listxattr,
-    .removexattr= bindfs_removexattr,
+    .setxattr   = crptc_setxattr,
+    .getxattr   = crptc_getxattr,
+    .listxattr  = crptc_listxattr,
+    .removexattr= crptc_removexattr,
 #endif
 };
 
@@ -1701,7 +1701,7 @@ int main(int argc, char *argv[])
     if (strcmp(settings.mntsrc, settings.mntdest) == 0)
         fuse_opt_add_arg(&args, "-ononempty");
 
-    /* Open mount source for chrooting in bindfs_init */
+    /* Open mount source for chrooting in crptc_init */
     settings.mntsrc_fd = open(settings.mntsrc, O_RDONLY);
     if (settings.mntsrc_fd == -1) {
         fprintf(stderr, "Could not open source directory\n");
@@ -1713,16 +1713,16 @@ int main(int argc, char *argv[])
 
     /* Remove xattr implementation if the user doesn't want it */
     if (settings.xattr_policy == XATTR_UNIMPLEMENTED) {
-        bindfs_oper.setxattr = NULL;
-        bindfs_oper.getxattr = NULL;
-        bindfs_oper.listxattr = NULL;
-        bindfs_oper.removexattr = NULL;
+        crptc_oper.setxattr = NULL;
+        crptc_oper.getxattr = NULL;
+        crptc_oper.listxattr = NULL;
+        crptc_oper.removexattr = NULL;
     }
 
     /* fuse_main will daemonize by fork()'ing. The signal handler will persist. */
     setup_signal_handling();
 
-    fuse_main_return = fuse_main(args.argc, args.argv, &bindfs_oper, NULL);
+    fuse_main_return = fuse_main(args.argc, args.argv, &crptc_oper, NULL);
 
     fuse_opt_free_args(&args);
     close(settings.mntsrc_fd);
