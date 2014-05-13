@@ -58,6 +58,7 @@
 #include <grp.h>
 #include <limits.h>
 #include <openssl/evp.h>
+#include <openssl/rand.h>
 #include <signal.h>
 #ifdef HAVE_SETXATTR
 #include <sys/xattr.h>
@@ -71,6 +72,7 @@
 #include "userinfo.h"
 #include "usermap.h"
 #include "misc.h"
+#include <termios.h>
 
 #define FH(x) ((FileHandle *)(x->fh))
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -87,6 +89,8 @@ static struct Settings {
     const char *mntsrc;
     const char *mntdest;
     int mntsrc_fd;
+
+    char key[EVP_MAX_KEY_LENGTH];
     
     char* original_working_dir;
     mode_t original_umask;
@@ -318,8 +322,10 @@ static int getattr_common(const char *procpath, struct stat *stbuf)
  
     // TODO: Hardcoded blocksize
     int block_size = EVP_CIPHER_block_size(EVP_aes_256_cbc());
-    //int iv_size = EVP_CIPHER_iv_length(EVP_aes_256_cbc());
-    stbuf->st_size += block_size - (stbuf->st_size % block_size);
+
+    stbuf->st_size += EVP_CIPHER_iv_length(EVP_aes_256_cbc());
+    if(stbuf->st_size % block_size != 0)
+        stbuf->st_size += block_size - (stbuf->st_size % block_size);
 
     return 0;
 }
@@ -496,6 +502,7 @@ static int crptc_releasedir(const char *path, struct fuse_file_info *fi)
 
 static int crptc_mknod(const char *path, mode_t mode, dev_t rdev)
 {
+	return -EROFS;
     int res;
     struct fuse_context *fc;
 
@@ -518,6 +525,7 @@ static int crptc_mknod(const char *path, mode_t mode, dev_t rdev)
 
 static int crptc_mkdir(const char *path, mode_t mode)
 {
+	return -EROFS;
     int res;
     struct fuse_context *fc;
 
@@ -538,6 +546,7 @@ static int crptc_mkdir(const char *path, mode_t mode)
 
 static int crptc_unlink(const char *path)
 {
+	return -EROFS;
     int res;
 
     path = process_path(path);
@@ -551,6 +560,7 @@ static int crptc_unlink(const char *path)
 
 static int crptc_rmdir(const char *path)
 {
+	return -EROFS;
     int res;
 
     path = process_path(path);
@@ -564,6 +574,7 @@ static int crptc_rmdir(const char *path)
 
 static int crptc_symlink(const char *from, const char *to)
 {
+	return -EROFS;
     int res;
     struct fuse_context *fc;
 
@@ -581,6 +592,7 @@ static int crptc_symlink(const char *from, const char *to)
 
 static int crptc_rename(const char *from, const char *to)
 {
+	return -EROFS;
     int res;
 
     from = process_path(from);
@@ -595,6 +607,7 @@ static int crptc_rename(const char *from, const char *to)
 
 static int crptc_link(const char *from, const char *to)
 {
+	return -EROFS;
     int res;
 
     from = process_path(from);
@@ -609,6 +622,7 @@ static int crptc_link(const char *from, const char *to)
 
 static int crptc_chmod(const char *path, mode_t mode)
 {
+	return -EROFS;
     int file_execute_only = 0;
     struct stat st;
     mode_t diff = 0;
@@ -657,6 +671,7 @@ static int crptc_chmod(const char *path, mode_t mode)
 
 static int crptc_chown(const char *path, uid_t uid, gid_t gid)
 {
+	return -EROFS;
     int res;
 
     if (uid != -1) {
@@ -697,6 +712,7 @@ static int crptc_chown(const char *path, uid_t uid, gid_t gid)
 
 static int crptc_truncate(const char *path, off_t size)
 {
+	return -EROFS;
     int res;
 
     path = process_path(path);
@@ -711,6 +727,7 @@ static int crptc_truncate(const char *path, off_t size)
 static int crptc_ftruncate(const char *path, off_t size,
                             struct fuse_file_info *fi)
 {
+	return -EROFS;
     int res;
     (void) path;
 
@@ -723,6 +740,7 @@ static int crptc_ftruncate(const char *path, off_t size,
 
 static int crptc_utimens(const char *path, const struct timespec tv[2])
 {
+	return -EROFS;
     int res;
 
     path = process_path(path);
@@ -736,6 +754,7 @@ static int crptc_utimens(const char *path, const struct timespec tv[2])
 
 static int crptc_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
+	return -EROFS;
     FileHandle *fh;
     int fd;
     struct fuse_context *fc;
@@ -765,6 +784,9 @@ static int crptc_open(const char *path, struct fuse_file_info *fi)
 
     path = process_path(path);
 
+    if (fi->flags & (O_WRONLY | O_RDWR | O_CREAT | O_EXCL | O_TRUNC | O_APPEND)) {
+        return -EROFS;
+    }
     fd = open(path, fi->flags);
     if (fd == -1)
         return -errno;
@@ -773,6 +795,25 @@ static int crptc_open(const char *path, struct fuse_file_info *fi)
     fh->fd = fd;
     fi->fh = (uint64_t)fh;
 
+    return 0;
+}
+
+static int
+init_crypto(FileHandle *fh, int decrypt) {
+    const EVP_CIPHER *cipher = EVP_aes_256_cbc();
+
+    fh->finished = fh->file_offset = 0;
+    RAND_pseudo_bytes(fh->buffer, EVP_MAX_BLOCK_LENGTH);
+    EVP_CIPHER_CTX_init(&fh->ctx);
+    EVP_EncryptInit_ex(&fh->ctx, cipher, NULL,
+            (unsigned char *) settings.key,
+            fh->buffer);
+    fh->buffer_length = EVP_CIPHER_CTX_iv_length(&fh->ctx);
+    /*int i;
+    for(i = 0; i < fh->buffer_length;i++) {
+        printf("%02x", fh->buffer[i]);
+    }
+    puts("");*/
     return 0;
 }
 
@@ -790,11 +831,7 @@ static int crptc_read(const char *path, char *buf, size_t size, off_t offset,
     unsigned char *encrypt;
 
     if(offset == 0 || offset < fh->file_offset) {
-        fh->finished = fh->file_offset = 0;
-        EVP_CIPHER_CTX_init(&fh->ctx);
-        EVP_EncryptInit_ex(&fh->ctx, EVP_aes_256_cbc(), NULL,
-                (unsigned char *)"00000000000000000000000000000000", // key
-                (unsigned char *)"0000000000000000"); // iv 
+        init_crypto(fh, 0);
     }
 
     block_size = EVP_CIPHER_CTX_block_size(&fh->ctx);
@@ -876,6 +913,7 @@ static int crptc_read(const char *path, char *buf, size_t size, off_t offset,
 static int crptc_write(const char *path, const char *buf, size_t size,
                         off_t offset, struct fuse_file_info *fi)
 {
+	return -EROFS;
     int res;
     (void) path;
 
@@ -992,6 +1030,7 @@ static int crptc_listxattr(const char *path, char *list, size_t size)
 
 static int crptc_removexattr(const char *path, const char *name)
 {
+	return -EROFS;
     DPRINTF("removexattr %s %s", path, name);
 
     if (settings.xattr_policy == XATTR_READ_ONLY)
@@ -1562,6 +1601,23 @@ int main(int argc, char *argv[])
     settings.ctime_from_mtime = 0;
     settings.hide_hard_links = 0;
     atexit(&atexit_func);
+
+    /* Read Key from stdin */
+    struct termios tp, save;
+    tcgetattr(STDIN_FILENO, &tp);
+    save = tp;                          /* So we can restore settings later */
+    tp.c_lflag &= ~ECHO;                /* ECHO off, other bits unchanged */
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &tp);
+    char hexKey[EVP_MAX_KEY_LENGTH * 2 + 1] = { 0 };
+    puts("Enter Key in Hex");
+    fgets(hexKey, EVP_MAX_KEY_LENGTH * 2 + 1, stdin);
+    int i;
+    for(i = 0; i < EVP_MAX_KEY_LENGTH; i++) {
+        sscanf(hexKey + i * 2, "%02x", (unsigned int *)&settings.key[i]);
+    }
+    tcsetattr(STDIN_FILENO, TCSANOW, &save);
+
+
     
     /* Parse options */
     if (fuse_opt_parse(&args, &od, options, &process_option) == -1)
