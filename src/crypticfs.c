@@ -321,9 +321,9 @@ static int getattr_common(const char *procpath, struct stat *stbuf)
     }
  
     // TODO: Hardcoded blocksize
-    int block_size = EVP_CIPHER_block_size(EVP_aes_256_cbc());
+    int block_size = EVP_CIPHER_block_size(EVP_aes_256_xts());
 
-    stbuf->st_size += EVP_CIPHER_iv_length(EVP_aes_256_cbc());
+    stbuf->st_size += EVP_CIPHER_iv_length(EVP_aes_256_xts());
     if(stbuf->st_size % block_size != 0)
         stbuf->st_size += block_size - (stbuf->st_size % block_size);
 
@@ -800,11 +800,11 @@ static int crptc_open(const char *path, struct fuse_file_info *fi)
 
 static int
 init_crypto(const char* path, FileHandle *fh, int decrypt) {
-    const EVP_CIPHER *cipher = EVP_aes_256_cbc();
-    char md[SHA256_DIGEST_LENGTH];
+    const EVP_CIPHER *cipher = EVP_aes_256_xts();
+    unsigned char md[SHA256_DIGEST_LENGTH];
 
     fh->finished = fh->file_offset = 0;
-    SHA256(path, strlen(path), md);
+    SHA256((unsigned char *)path, strlen(path), md);
     memcpy(fh->buffer, md, EVP_MAX_BLOCK_LENGTH);
     EVP_CIPHER_CTX_init(&fh->ctx);
     EVP_EncryptInit_ex(&fh->ctx, cipher, NULL,
