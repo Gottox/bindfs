@@ -58,7 +58,7 @@
 #include <grp.h>
 #include <limits.h>
 #include <openssl/evp.h>
-#include <openssl/rand.h>
+#include <openssl/sha.h>
 #include <signal.h>
 #ifdef HAVE_SETXATTR
 #include <sys/xattr.h>
@@ -502,7 +502,7 @@ static int crptc_releasedir(const char *path, struct fuse_file_info *fi)
 
 static int crptc_mknod(const char *path, mode_t mode, dev_t rdev)
 {
-	return -EROFS;
+    return -EROFS;
     int res;
     struct fuse_context *fc;
 
@@ -525,7 +525,7 @@ static int crptc_mknod(const char *path, mode_t mode, dev_t rdev)
 
 static int crptc_mkdir(const char *path, mode_t mode)
 {
-	return -EROFS;
+    return -EROFS;
     int res;
     struct fuse_context *fc;
 
@@ -546,7 +546,7 @@ static int crptc_mkdir(const char *path, mode_t mode)
 
 static int crptc_unlink(const char *path)
 {
-	return -EROFS;
+    return -EROFS;
     int res;
 
     path = process_path(path);
@@ -560,7 +560,7 @@ static int crptc_unlink(const char *path)
 
 static int crptc_rmdir(const char *path)
 {
-	return -EROFS;
+    return -EROFS;
     int res;
 
     path = process_path(path);
@@ -574,7 +574,7 @@ static int crptc_rmdir(const char *path)
 
 static int crptc_symlink(const char *from, const char *to)
 {
-	return -EROFS;
+    return -EROFS;
     int res;
     struct fuse_context *fc;
 
@@ -592,7 +592,7 @@ static int crptc_symlink(const char *from, const char *to)
 
 static int crptc_rename(const char *from, const char *to)
 {
-	return -EROFS;
+    return -EROFS;
     int res;
 
     from = process_path(from);
@@ -607,7 +607,7 @@ static int crptc_rename(const char *from, const char *to)
 
 static int crptc_link(const char *from, const char *to)
 {
-	return -EROFS;
+    return -EROFS;
     int res;
 
     from = process_path(from);
@@ -622,7 +622,7 @@ static int crptc_link(const char *from, const char *to)
 
 static int crptc_chmod(const char *path, mode_t mode)
 {
-	return -EROFS;
+    return -EROFS;
     int file_execute_only = 0;
     struct stat st;
     mode_t diff = 0;
@@ -671,7 +671,7 @@ static int crptc_chmod(const char *path, mode_t mode)
 
 static int crptc_chown(const char *path, uid_t uid, gid_t gid)
 {
-	return -EROFS;
+    return -EROFS;
     int res;
 
     if (uid != -1) {
@@ -712,7 +712,7 @@ static int crptc_chown(const char *path, uid_t uid, gid_t gid)
 
 static int crptc_truncate(const char *path, off_t size)
 {
-	return -EROFS;
+    return -EROFS;
     int res;
 
     path = process_path(path);
@@ -727,7 +727,7 @@ static int crptc_truncate(const char *path, off_t size)
 static int crptc_ftruncate(const char *path, off_t size,
                             struct fuse_file_info *fi)
 {
-	return -EROFS;
+    return -EROFS;
     int res;
     (void) path;
 
@@ -740,7 +740,7 @@ static int crptc_ftruncate(const char *path, off_t size,
 
 static int crptc_utimens(const char *path, const struct timespec tv[2])
 {
-	return -EROFS;
+    return -EROFS;
     int res;
 
     path = process_path(path);
@@ -754,7 +754,7 @@ static int crptc_utimens(const char *path, const struct timespec tv[2])
 
 static int crptc_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
-	return -EROFS;
+    return -EROFS;
     FileHandle *fh;
     int fd;
     struct fuse_context *fc;
@@ -799,11 +799,13 @@ static int crptc_open(const char *path, struct fuse_file_info *fi)
 }
 
 static int
-init_crypto(FileHandle *fh, int decrypt) {
+init_crypto(const char* path, FileHandle *fh, int decrypt) {
     const EVP_CIPHER *cipher = EVP_aes_256_cbc();
+    char md[SHA256_DIGEST_LENGTH];
 
     fh->finished = fh->file_offset = 0;
-    RAND_pseudo_bytes(fh->buffer, EVP_MAX_BLOCK_LENGTH);
+    SHA256(path, strlen(path), md);
+    memcpy(fh->buffer, md, EVP_MAX_BLOCK_LENGTH);
     EVP_CIPHER_CTX_init(&fh->ctx);
     EVP_EncryptInit_ex(&fh->ctx, cipher, NULL,
             (unsigned char *) settings.key,
@@ -831,7 +833,7 @@ static int crptc_read(const char *path, char *buf, size_t size, off_t offset,
     unsigned char *encrypt;
 
     if(offset == 0 || offset < fh->file_offset) {
-        init_crypto(fh, 0);
+        init_crypto(path, fh, 0);
     }
 
     block_size = EVP_CIPHER_CTX_block_size(&fh->ctx);
@@ -913,7 +915,7 @@ static int crptc_read(const char *path, char *buf, size_t size, off_t offset,
 static int crptc_write(const char *path, const char *buf, size_t size,
                         off_t offset, struct fuse_file_info *fi)
 {
-	return -EROFS;
+    return -EROFS;
     int res;
     (void) path;
 
@@ -1030,7 +1032,7 @@ static int crptc_listxattr(const char *path, char *list, size_t size)
 
 static int crptc_removexattr(const char *path, const char *name)
 {
-	return -EROFS;
+    return -EROFS;
     DPRINTF("removexattr %s %s", path, name);
 
     if (settings.xattr_policy == XATTR_READ_ONLY)
